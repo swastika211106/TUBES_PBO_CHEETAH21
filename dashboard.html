@@ -1,0 +1,336 @@
+{% extends "base.html" %}
+{% set active = "dashboard" %}
+{% block page_title %}<i class="emote-animate" style="font-style:normal; margin-right:8px;">📊</i> Dashboard{% endblock %}
+
+{% block content %}
+
+<!-- ACTION BUTTONS -->
+<div style="display: flex; gap: 12px; margin-bottom: 24px;">
+  <button class="btn btn-primary" onclick="exportDashboardPDF()" style="background:#dc2626; border-color:#dc2626; box-shadow: 0 4px 6px -1px rgba(220, 38, 38, 0.2);">
+    <i class="fas fa-file-pdf" style="margin-right:6px;"></i> Cetak Laporan PDF
+  </button>
+  <button class="btn btn-success" onclick="exportDashboardExcel()" style="background:#16a34a; border-color:#16a34a; box-shadow: 0 4px 6px -1px rgba(22, 163, 74, 0.2);">
+    <i class="fas fa-file-excel" style="margin-right:6px;"></i> Export Laporan Excel
+  </button>
+</div>
+
+<!-- STAT CARDS ROW 1 -->
+
+<div class="stats-grid">
+  <div class="stat-card stat-purple" onclick="openDetailModal('jenis')" style="cursor:pointer;" title="Lihat Detail">
+    <div class="stat-icon"><i class="fas fa-boxes-stacked"></i></div>
+    <div class="stat-value">{{ total_jenis }}</div>
+    <div class="stat-label">Total Jenis Barang</div>
+  </div>
+  <div class="stat-card stat-pink" onclick="openDetailModal('stok')" style="cursor:pointer;" title="Lihat Detail">
+    <div class="stat-icon"><i class="fas fa-layer-group"></i></div>
+    <div class="stat-value">{{ total_stok }}</div>
+    <div class="stat-label">Total Stok Barang</div>
+  </div>
+  <div class="stat-card stat-teal" onclick="openDetailModal('masuk')" style="cursor:pointer;" title="Lihat Detail">
+    <div class="stat-icon"><i class="fas fa-circle-down"></i></div>
+    <div class="stat-value">{{ total_masuk }}</div>
+    <div class="stat-label">Barang Masuk</div>
+  </div>
+  <div class="stat-card stat-green" onclick="openDetailModal('keluar')" style="cursor:pointer;" title="Lihat Detail">
+    <div class="stat-icon"><i class="fas fa-circle-up"></i></div>
+    <div class="stat-value">{{ total_keluar }}</div>
+    <div class="stat-label">Barang Keluar</div>
+  </div>
+</div>
+
+<!-- STAT CARDS ROW 2 -->
+<div class="stats-grid2">
+  <div class="stat-card2 stat-pink2" onclick="openDetailModal('nilaibeli')" style="cursor:pointer;" title="Lihat Detail">
+    <div class="stat-icon"><i class="fas fa-money-bill-wave"></i></div>
+    <div class="stat-value">{{ total_nilai_beli }}</div>
+    <div class="stat-label" style="opacity:.85;font-size:13px;margin-top:6px;">Total Nilai (Harga Beli)</div>
+  </div>
+  <div class="stat-card2 stat-green2" onclick="openDetailModal('nilaijual')" style="cursor:pointer;" title="Lihat Detail">
+    <div class="stat-icon"><i class="fas fa-coins"></i></div>
+    <div class="stat-value">{{ total_nilai_jual }}</div>
+    <div class="stat-label" style="opacity:.85;font-size:13px;margin-top:6px;">Total Nilai (Harga Jual)</div>
+  </div>
+  <div class="stat-card2 stat-lime" onclick="openDetailModal('keuntungan')" style="cursor:pointer;" title="Lihat Detail">
+    <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
+    <div class="stat-value">{{ total_keuntungan }}</div>
+    <div class="stat-label" style="opacity:.85;font-size:13px;margin-top:6px;">Total Keuntungan</div>
+  </div>
+</div>
+
+<!-- FILTER ROW -->
+<div class="card" style="padding:18px 24px;">
+  <div style="display:flex;gap:32px;flex-wrap:wrap;">
+    <div class="dash-filter">
+      <label>Filter Transaksi</label>
+      <select id="filterTransaksi" onchange="applyFilter()">
+        <option value="bulanan">Bulanan</option>
+        <option value="harian">Harian</option>
+        <option value="mingguan">Mingguan</option>
+        <option value="tahunan">Tahunan</option>
+      </select>
+      <button class="btn btn-primary" onclick="applyFilter()" style="padding:7px 14px;font-size:13px;"><i class="fas fa-filter"></i> Terapkan</button>
+    </div>
+    <div class="dash-filter">
+      <label>Filter Kategori</label>
+      <select id="filterKategori">
+        <option value="">Semua Kategori</option>
+      </select>
+      <button class="btn btn-primary" onclick="applyFilter()" style="padding:7px 14px;font-size:13px;"><i class="fas fa-filter"></i> Terapkan</button>
+    </div>
+  </div>
+</div>
+
+<!-- CHART -->
+<div class="card">
+  <div style="font-size:15px;font-weight:700;margin-bottom:16px;">Grafik Transaksi</div>
+  <canvas id="chartTransaksi" height="100"></canvas>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+  let chart;
+  async function loadCategories() {
+    const res = await fetch('/api/kategori');
+    const cats = await res.json();
+    const sel = document.getElementById('filterKategori');
+    cats.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.name; opt.textContent = c.name; sel.appendChild(opt);
+    });
+  }
+  async function applyFilter() {
+    const ft = document.getElementById('filterTransaksi').value;
+    const fk = document.getElementById('filterKategori').value;
+    const [bm, bk] = await Promise.all([
+      fetch('/api/barang-masuk').then(r=>r.json()),
+      fetch('/api/barang-keluar').then(r=>r.json()),
+    ]);
+    const labels = groupByPeriod(bm, bk, ft);
+    renderChart(labels.labels, labels.masuk, labels.keluar);
+  }
+  function groupByPeriod(masuk, keluar, period) {
+    const groups = {};
+    const fmt = d => {
+      const dt = new Date(d);
+      if (period === 'harian')   return dt.toISOString().split('T')[0];
+      if (period === 'mingguan') { const w = new Date(dt); w.setDate(dt.getDate()-dt.getDay()); return w.toISOString().split('T')[0]; }
+      if (period === 'bulanan')  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`;
+      if (period === 'tahunan')  return `${dt.getFullYear()}`;
+      return dt.toISOString().split('T')[0];
+    };
+    masuk.forEach(i => { const k = fmt(i.date); if(!groups[k]) groups[k]={masuk:0,keluar:0}; groups[k].masuk += i.quantity||0; });
+    keluar.forEach(i => { const k = fmt(i.date); if(!groups[k]) groups[k]={masuk:0,keluar:0}; groups[k].keluar += i.quantity||0; });
+    const sorted = Object.keys(groups).sort();
+    return { labels: sorted, masuk: sorted.map(k=>groups[k].masuk), keluar: sorted.map(k=>groups[k].keluar) };
+  }
+  function renderChart(labels, masukData, keluarData) {
+    if (chart) chart.destroy();
+    const ctx = document.getElementById('chartTransaksi').getContext('2d');
+    chart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Barang Masuk', data: masukData, backgroundColor: 'rgba(13,148,136,.7)', borderColor: 'rgb(13,148,136)', borderWidth: 2, borderRadius: 5 },
+          { label: 'Barang Keluar', data: keluarData, backgroundColor: 'rgba(239,68,68,.7)', borderColor: 'rgb(239,68,68)', borderWidth: 2, borderRadius: 5 },
+        ]
+      },
+      options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }
+    });
+  }
+  loadCategories();
+  applyFilter();
+</script>
+<!-- MODAL DETAIL DASHBOARD -->
+<div class="modal-overlay" id="modalDetail">
+  <div class="modal" style="width: 800px; max-width: 90vw;">
+    <div class="modal-header">
+      <span class="modal-title" id="modalDetailTitle">Detail</span>
+      <button class="modal-close" onclick="closeDetailModal()"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
+      <table class="table">
+        <thead id="modalDetailHead"></thead>
+        <tbody id="modalDetailBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<script>
+  const invData = {{ inventory_data | safe }};
+  const inData = {{ masuk_data | safe }};
+  const outData = {{ keluar_data | safe }};
+
+  function openDetailModal(type) {
+    const title = document.getElementById('modalDetailTitle');
+    const thead = document.getElementById('modalDetailHead');
+    const tbody = document.getElementById('modalDetailBody');
+    tbody.innerHTML = '';
+    thead.innerHTML = '';
+    
+    if (type === 'jenis' || type === 'stok') {
+      title.textContent = 'Detail Master Barang';
+      thead.innerHTML = '<tr><th>Kode</th><th>Kategori</th><th>Nama</th><th>Stok</th><th>Harga Beli</th><th>Harga Jual</th></tr>';
+      invData.forEach(i => {
+        tbody.innerHTML += `<tr><td>${i.code}</td><td>${i.category||'-'}</td><td>${i.name}</td><td>${i.stock||0}</td><td>Rp ${(i.buyPrice||0).toLocaleString('id-ID')}</td><td>Rp ${(i.sellPrice||0).toLocaleString('id-ID')}</td></tr>`;
+      });
+    } else if (type === 'masuk' || type === 'nilaibeli') {
+      title.textContent = 'Detail Transaksi Barang Masuk';
+      thead.innerHTML = '<tr><th>ID</th><th>Tanggal</th><th>Kategori</th><th>Barang</th><th>Jumlah</th><th>Harga Beli</th><th>Total Beli</th></tr>';
+      inData.forEach(i => {
+        let total = (i.quantity||0) * (i.buyPrice||0);
+        tbody.innerHTML += `<tr><td>${i.transactionId||'-'}</td><td>${i.date||'-'}</td><td>${i.category||'-'}</td><td>${i.itemName||'-'}</td><td>${i.quantity||0}</td><td>Rp ${(i.buyPrice||0).toLocaleString('id-ID')}</td><td>Rp ${total.toLocaleString('id-ID')}</td></tr>`;
+      });
+    } else if (type === 'keluar' || type === 'nilaijual' || type === 'keuntungan') {
+      title.textContent = 'Detail Transaksi Barang Keluar';
+      thead.innerHTML = '<tr><th>ID</th><th>Tanggal</th><th>Barang</th><th>Jumlah</th><th>Total Beli</th><th>Total Jual</th><th>Keuntungan</th></tr>';
+      outData.forEach(i => {
+        let h_jual = i.sellPrice || 0;
+        let h_beli = i.buyPrice || 0;
+        let invItem = invData.find(x => x.code === i.itemCode);
+        if (invItem) {
+            if (!i.sellPrice) h_jual = invItem.sellPrice || 0;
+            if (!i.buyPrice) h_beli = invItem.buyPrice || 0;
+        }
+        let t_jual = (i.quantity||0) * h_jual;
+        let t_beli = (i.quantity||0) * h_beli;
+        let profit = t_jual - t_beli;
+        tbody.innerHTML += `<tr><td>${i.transactionId||'-'}</td><td>${i.date||'-'}</td><td>${i.itemName||'-'}</td><td>${i.quantity||0}</td><td>Rp ${t_beli.toLocaleString('id-ID')}</td><td>Rp ${t_jual.toLocaleString('id-ID')}</td><td style="color:${profit >= 0 ? '#10b981' : '#ef4444'}">Rp ${profit.toLocaleString('id-ID')}</td></tr>`;
+      });
+    }
+    
+    document.getElementById('modalDetail').classList.add('show');
+  }
+
+  function closeDetailModal() {
+    document.getElementById('modalDetail').classList.remove('show');
+  }
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+  function exportDashboardExcel() {
+    if (typeof XLSX === 'undefined') { alert('Library excel belum termuat.'); return; }
+    const wb = XLSX.utils.book_new();
+    
+    const summaryData = [
+      ["LAPORAN RINGKASAN TOKO"],
+      [""],
+      ["Total Jenis Barang", invData.length],
+      ["Total Stok Barang", invData.reduce((sum, item) => sum + (parseInt(item.stock)||0), 0)],
+      ["Total Transaksi Masuk", inData.length],
+      ["Total Transaksi Keluar", outData.length],
+      ["Total Nilai Beli", "Rp " + inData.reduce((sum, item) => sum + (item.quantity||0)*(item.buyPrice||0), 0).toLocaleString('id-ID')],
+      ["Total Nilai Jual", "Rp " + outData.reduce((sum, item) => sum + (item.quantity||0)*(item.sellPrice||0), 0).toLocaleString('id-ID')],
+      ["Total Keuntungan", "Rp " + outData.reduce((sum, item) => {
+        let hb = item.buyPrice||0; let hj = item.sellPrice||0;
+        let invItem = invData.find(x => x.code === item.itemCode);
+        if(invItem){ if(!hj) hj=invItem.sellPrice||0; if(!hb) hb=invItem.buyPrice||0; }
+        return sum + (item.quantity||0)*(hj - hb);
+      }, 0).toLocaleString('id-ID')],
+    ];
+    const ws1 = XLSX.utils.aoa_to_sheet(summaryData);
+    ws1['!cols'] = [{wch: 25}, {wch: 20}];
+    XLSX.utils.book_append_sheet(wb, ws1, "Ringkasan Dasbor");
+    
+    const invSheetData = invData.map(i => ({
+      "Kode": i.code, "Kategori": i.category||'-', "Nama": i.name, "Stok": i.stock, "Harga Beli": i.buyPrice, "Harga Jual": i.sellPrice
+    }));
+    const ws2 = XLSX.utils.json_to_sheet(invSheetData);
+    XLSX.utils.book_append_sheet(wb, ws2, "Master Barang");
+    
+    const inSheetData = inData.map(i => ({
+      "ID Transaksi": i.transactionId, "Tanggal": i.date, "Kategori": i.category||'-', "Nama Barang": i.itemName, "Jumlah": i.quantity, "Total Beli": (i.quantity||0) * (i.buyPrice||0)
+    }));
+    const ws3 = XLSX.utils.json_to_sheet(inSheetData);
+    XLSX.utils.book_append_sheet(wb, ws3, "Riwayat Barang Masuk");
+
+    const outSheetData = outData.map(i => {
+      let hb = i.buyPrice || 0;
+      let hj = i.sellPrice || 0;
+      let invItem = invData.find(x => x.code === i.itemCode);
+      if(invItem){ if(!hj) hj=invItem.sellPrice||0; if(!hb) hb=invItem.buyPrice||0; }
+      let supplier = inData.slice().reverse().find(m => m.itemCode === i.itemCode)?.supplier || '-';
+      return {
+        "ID Transaksi": i.transactionId, "Tanggal": i.date, "Nama Barang": i.itemName, "Supplier": supplier, "Harga Beli": hb, "Harga Jual": hj, "Jumlah Terjual": i.quantity, "Total Jual": i.quantity * hj, "Keuntungan": i.quantity * (hj - hb)
+      }
+    });
+    const ws4 = XLSX.utils.json_to_sheet(outSheetData);
+    XLSX.utils.book_append_sheet(wb, ws4, "Riwayat Barang Keluar");
+
+    XLSX.writeFile(wb, "Laporan_Kinerja_Toko.xlsx");
+  }
+
+  function exportDashboardPDF() {
+    if (typeof html2pdf === 'undefined') { alert('Library PDF belum termuat.'); return; }
+    const printDiv = document.createElement('div');
+    printDiv.style.padding = '30px';
+    printDiv.style.fontFamily = 'Arial, sans-serif';
+    printDiv.style.color = '#333';
+    
+    let invTable = `<table border="1" cellpadding="5" style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:10px;">
+      <tr style="background:#f1f5f9;"><th>Kode</th><th>Kategori</th><th>Nama Barang</th><th>Stok</th><th>H. Beli</th><th>H. Jual</th></tr>`;
+    invData.forEach(i => {
+      invTable += `<tr><td>${i.code}</td><td>${i.category||'-'}</td><td>${i.name}</td><td>${i.stock||0}</td><td>Rp ${(i.buyPrice||0).toLocaleString('id-ID')}</td><td>Rp ${(i.sellPrice||0).toLocaleString('id-ID')}</td></tr>`;
+    });
+    invTable += `</table>`;
+
+    let outTable = `<table border="1" cellpadding="5" style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:10px;">
+      <tr style="background:#f1f5f9;"><th>Tanggal</th><th>Nama Barang</th><th>Supplier</th><th>Jml</th><th>Harga Beli</th><th>Harga Jual</th><th>Keuntungan</th></tr>`;
+    outData.forEach(i => {
+      let hb = i.buyPrice || 0; let hj = i.sellPrice || 0;
+      let invItem = invData.find(x => x.code === i.itemCode);
+      if(invItem){ if(!hj) hj=invItem.sellPrice||0; if(!hb) hb=invItem.buyPrice||0; }
+      let profit = (i.quantity||0) * (hj - hb);
+      let supplier = inData.slice().reverse().find(m => m.itemCode === i.itemCode)?.supplier || '-';
+      outTable += `<tr><td>${i.date}</td><td>${i.itemName}</td><td>${supplier}</td><td>${i.quantity}</td><td>Rp ${hb.toLocaleString('id-ID')}</td><td>Rp ${hj.toLocaleString('id-ID')}</td><td style="color:${profit>=0?'green':'red'}">Rp ${profit.toLocaleString('id-ID')}</td></tr>`;
+    });
+    outTable += `</table>`;
+
+    let totalProfit = outData.reduce((sum, item) => {
+      let hb = item.buyPrice||0; let hj = item.sellPrice||0;
+      let invItem = invData.find(x => x.code === item.itemCode);
+      if(invItem){ if(!hj) hj=invItem.sellPrice||0; if(!hb) hb=invItem.buyPrice||0; }
+      return sum + (item.quantity||0)*(hj - hb);
+    }, 0);
+
+    printDiv.innerHTML = `
+      <h2 style="text-align:center;margin-bottom:5px; color:#0f172a;">Laporan Kinerja & Pengembangan Toko</h2>
+      <p style="text-align:center; font-size:12px; margin-bottom:20px; color:#64748b;">Dicetak pada: ${new Date().toLocaleString('id-ID')}</p>
+      <hr style="border:0; border-top:2px solid #cbd5e1; margin-bottom:20px;"/>
+      
+      <h3 style="color:#0f172a; margin-bottom:10px;">1. Ringkasan Eksekutif</h3>
+      <table border="1" cellpadding="8" style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px; text-align:left;">
+        <tr>
+          <th style="background:#f1f5f9; width:25%;">Total Jenis Barang</th><td>${invData.length}</td>
+          <th style="background:#f1f5f9; width:25%;">Total Keuntungan</th>
+          <td style="font-weight:bold; color:green;">Rp ${totalProfit.toLocaleString('id-ID')}</td>
+        </tr>
+        <tr>
+          <th style="background:#f1f5f9;">Total Transaksi Masuk</th><td>${inData.length}</td>
+          <th style="background:#f1f5f9;">Total Transaksi Keluar</th><td>${outData.length}</td>
+        </tr>
+      </table>
+      
+      <h3 style="color:#0f172a; margin-bottom:10px;">2. Daftar Master Barang Saat Ini</h3>
+      ${invTable}
+
+      <h3 style="color:#0f172a; margin-bottom:10px;">3. Riwayat Penjualan Detail</h3>
+      ${outTable}
+      
+      <p style="text-align:center; font-size:10px; margin-top:40px; color:#94a3b8;">Laporan ini di-generate otomatis oleh Sistem Inventory.</p>
+    `;
+    
+    const opt = {
+      margin: 0.4,
+      filename: 'Laporan_Pengembangan_Toko.pdf',
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+    };
+    html2pdf().set(opt).from(printDiv).save();
+  }
+</script>
+{% endblock %}

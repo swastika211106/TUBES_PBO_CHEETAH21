@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% set active = "supplier" %}
+{% block page_title %}<i class="emote-animate" style="font-style:normal; margin-right:8px;">🚚</i> Supplier{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="toolbar">
+    <button class="btn btn-primary" onclick="openAddModal()"><i class="fas fa-plus-circle"></i> Tambah Supplier</button>
+    <button class="btn btn-danger" onclick="printPDF()"><i class="fas fa-file-pdf"></i> Print PDF</button>
+    <button class="btn btn-success" onclick="exportExcel()"><i class="fas fa-file-excel"></i> Export Excel</button>
+    <button class="btn btn-secondary" onclick="loadData()"><i class="fas fa-rotate-right"></i> Refresh</button>
+  </div>
+  <div class="filter-row">
+    <div class="search-bar">
+      <i class="fas fa-magnifying-glass"></i>
+      <input type="text" id="searchInput" placeholder="Cari berdasarkan ID, nama, alamat, telepon..." oninput="onSearch()"/>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>ID Supplier</th><th>Nama Supplier</th><th>Alamat</th><th>Telepon</th><th>Aksi</th></tr>
+      </thead>
+      <tbody id="tableBody">
+        <tr><td colspan="5" class="empty-state">Memuat data...</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="pagination-row">
+    <span class="pagination-info pag-info">Menampilkan 0 - 0 dari 0 item</span>
+    <div style="display:flex;align-items:center;gap:16px;">
+      <div class="per-page">Tampilkan per halaman:
+        <select onchange="changePerPage(this.value)"><option>10</option><option>25</option><option>50</option></select>
+      </div>
+      <div class="pag-btns">
+        <button class="pag-btn pag-prev" onclick="changePage(-1)">«</button>
+        <button class="pag-btn pag-next" onclick="changePage(1)">»</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalForm">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalFormTitle">Tambah Supplier</span>
+      <button class="modal-close" onclick="closeModal('modalForm')"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editId"/>
+      <div class="form-group">
+        <label class="form-label">ID Supplier <span style="color:#9ca3af;font-weight:400">(auto-generate)</span></label>
+        <input class="form-control" id="fSupId" placeholder="SUP001"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nama Supplier *</label>
+        <input class="form-control" id="fName" placeholder="Nama supplier"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Alamat</label>
+        <textarea class="form-control" id="fAddress" rows="3" placeholder="Alamat lengkap"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Telepon</label>
+        <input class="form-control" id="fPhone" placeholder="08xxxxxxxxxx"/>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modalForm')">Batal</button>
+      <button class="btn btn-primary" onclick="saveItem()"><i class="fas fa-floppy-disk"></i> Simpan</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalDelete">
+  <div class="modal" style="width:360px;">
+    <div class="modal-header"><span class="modal-title">Konfirmasi Hapus</span>
+      <button class="modal-close" onclick="closeModal('modalDelete')"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="modal-body"><p style="font-size:14px;color:#4b5563;">Hapus supplier ini? Tindakan tidak dapat dibatalkan.</p></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modalDelete')">Batal</button>
+      <button class="btn btn-danger" onclick="confirmDelete()"><i class="fas fa-trash"></i> Hapus</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let allData = [], currentPage = 1, perPage = 10, deleteId = null;
+
+  async function loadData() {
+    const res = await fetch('/api/supplier');
+    allData = await res.json();
+    renderTable(allData);
+  }
+
+  function onSearch() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    const filtered = allData.filter(i => (i.supplierId||'').toLowerCase().includes(q) || (i.name||'').toLowerCase().includes(q) || (i.address||'').toLowerCase().includes(q) || (i.phone||'').toLowerCase().includes(q));
+    currentPage = 1; renderTable(filtered);
+  }
+
+  function renderTable(data) {
+    const start = (currentPage - 1) * perPage;
+    const page = data.slice(start, start + perPage);
+    const tbody = document.getElementById('tableBody');
+    if (!data.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Tidak ada data untuk ditampilkan.</td></tr>'; }
+    else {
+      tbody.innerHTML = page.map(i => `
+        <tr>
+          <td>${i.supplierId||''}</td><td>${i.name||''}</td><td>${i.address||''}</td><td>${i.phone||''}</td>
+          <td><div class="action-btns">
+            <button class="btn-edit" onclick="openEditModal(${i.id})"><i class="fas fa-pencil"></i></button>
+            <button class="btn-delete" onclick="openDeleteModal(${i.id})"><i class="fas fa-trash"></i></button>
+          </div></td>
+        </tr>`).join('');
+    }
+    const total = data.length, e = Math.min(currentPage * perPage, total), s = total ? start + 1 : 0;
+    document.querySelector('.pag-info').textContent = `Menampilkan ${s} - ${e} dari ${total} item`;
+    document.querySelector('.pag-prev').disabled = currentPage <= 1;
+    document.querySelector('.pag-next').disabled = currentPage >= Math.ceil(total / perPage);
+  }
+
+  function changePage(dir) { currentPage += dir; renderTable(allData); }
+  function changePerPage(v) { perPage = parseInt(v); currentPage = 1; renderTable(allData); }
+
+  function openAddModal() {
+    document.getElementById('modalFormTitle').textContent = 'Tambah Supplier';
+    document.getElementById('editId').value = '';
+    ['fSupId','fName','fAddress','fPhone'].forEach(id => document.getElementById(id).value = '');
+    openModal('modalForm');
+  }
+
+  function openEditModal(id) {
+    const item = allData.find(i => i.id === id);
+    if (!item) return;
+    document.getElementById('modalFormTitle').textContent = 'Edit Supplier';
+    document.getElementById('editId').value = id;
+    document.getElementById('fSupId').value = item.supplierId || '';
+    document.getElementById('fName').value = item.name || '';
+    document.getElementById('fAddress').value = item.address || '';
+    document.getElementById('fPhone').value = item.phone || '';
+    openModal('modalForm');
+  }
+
+  async function saveItem() {
+    const id = document.getElementById('editId').value;
+    const body = {
+      supplierId: document.getElementById('fSupId').value.trim(),
+      name: document.getElementById('fName').value.trim(),
+      address: document.getElementById('fAddress').value.trim(),
+      phone: document.getElementById('fPhone').value.trim(),
+    };
+    if (!body.name) { showToast('Nama supplier wajib diisi', 'error'); return; }
+    const url = id ? `/api/supplier/${id}` : '/api/supplier';
+    const method = id ? 'PUT' : 'POST';
+    const res = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const result = await res.json();
+    if (result.success) { showToast(id ? 'Supplier diperbarui' : 'Supplier ditambahkan', 'success'); closeModal('modalForm'); loadData(); }
+    else showToast(result.message || 'Gagal menyimpan', 'error');
+  }
+
+  function openDeleteModal(id) { deleteId = id; openModal('modalDelete'); }
+  async function confirmDelete() {
+    const res = await fetch(`/api/supplier/${deleteId}`, { method: 'DELETE' });
+    const result = await res.json();
+    if (result.success) { showToast('Supplier dihapus', 'success'); closeModal('modalDelete'); loadData(); }
+    else showToast(result.message || 'Gagal menghapus', 'error');
+  }
+
+  async function printPDF() {
+    const temp = perPage; perPage = 99999; onSearch();
+    await downloadPDF('Data_Supplier');
+    perPage = temp; onSearch();
+  }
+
+  function exportExcel() {
+    const temp = perPage; perPage = 99999; onSearch();
+    downloadExcel('Data_Supplier');
+    perPage = temp; onSearch();
+  }
+
+  loadData();
+</script>
+{% endblock %}

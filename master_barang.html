@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+{% set active = "master-barang" %}
+{% block page_title %}<i class="emote-animate" style="font-style:normal; margin-right:8px;">📦</i> Master Barang{% endblock %}
+
+{% block content %}
+<div class="card">
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <button class="btn btn-primary" onclick="openAddModal()"><i class="fas fa-plus-circle"></i> Tambah Barang</button>
+    <button class="btn btn-danger" onclick="printPDF()"><i class="fas fa-file-pdf"></i> Print PDF</button>
+    <button class="btn btn-success" onclick="exportExcel()"><i class="fas fa-file-excel"></i> Export Excel</button>
+    <button class="btn btn-secondary" onclick="loadData()"><i class="fas fa-rotate-right"></i> Refresh</button>
+  </div>
+  <!-- SEARCH -->
+  <div class="filter-row">
+    <div class="search-bar">
+      <i class="fas fa-magnifying-glass"></i>
+      <input type="text" id="searchInput" placeholder="Cari berdasarkan kode, nama, kategori..." oninput="onSearch()"/>
+    </div>
+  </div>
+  <!-- TABLE -->
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Kode</th><th>Nama</th><th>Kategori</th><th>Stok</th>
+          <th>Satuan</th><th>Harga Beli</th><th>Harga Jual</th><th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody">
+        <tr><td colspan="8" class="empty-state">Memuat data...</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <!-- PAGINATION -->
+  <div class="pagination-row">
+    <span class="pagination-info pag-info">Menampilkan 0 - 0 dari 0 item</span>
+    <div style="display:flex;align-items:center;gap:16px;">
+      <div class="per-page">Tampilkan per halaman:
+        <select onchange="changePerPage(this.value)"><option>10</option><option>25</option><option>50</option></select>
+      </div>
+      <div class="pag-btns">
+        <button class="pag-btn pag-prev" onclick="changePage(-1)">«</button>
+        <button class="pag-btn pag-next" onclick="changePage(1)">»</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ADD/EDIT -->
+<div class="modal-overlay" id="modalForm">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalFormTitle">Tambah Barang</span>
+      <button class="modal-close" onclick="closeModal('modalForm')"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editId"/>
+      <div class="form-group">
+        <label class="form-label">Kode Barang <span style="color:#9ca3af;font-weight:400">(opsional, auto-generate)</span></label>
+        <input class="form-control" id="fCode" placeholder="Contoh: BRG001"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nama Barang *</label>
+        <input class="form-control" id="fName" placeholder="Nama barang"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Kategori *</label>
+        <select class="form-control" id="fCategory"><option value="">-- Pilih Kategori --</option></select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group">
+          <label class="form-label">Stok Awal</label>
+          <input class="form-control" id="fStock" type="number" min="0" placeholder="0"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Satuan</label>
+          <input class="form-control" id="fUnit" placeholder="pcs, kg, liter..."/>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group">
+          <label class="form-label">Harga Beli (Rp)</label>
+          <input class="form-control" id="fBuyPrice" type="number" min="0" placeholder="0"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Harga Jual (Rp)</label>
+          <input class="form-control" id="fSellPrice" type="number" min="0" placeholder="0"/>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modalForm')">Batal</button>
+      <button class="btn btn-primary" onclick="saveItem()"><i class="fas fa-floppy-disk"></i> Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONFIRM DELETE -->
+<div class="modal-overlay" id="modalDelete">
+  <div class="modal" style="width:360px;">
+    <div class="modal-header"><span class="modal-title">Konfirmasi Hapus</span>
+      <button class="modal-close" onclick="closeModal('modalDelete')"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:14px;color:#4b5563;">Apakah Anda yakin ingin menghapus barang ini? Tindakan ini tidak dapat dibatalkan.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modalDelete')">Batal</button>
+      <button class="btn btn-danger" onclick="confirmDelete()"><i class="fas fa-trash"></i> Hapus</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let allData = [], currentPage = 1, perPage = 10, deleteId = null;
+
+  async function loadData() {
+    const res = await fetch('/api/inventory');
+    allData = await res.json();
+    renderTable();
+    loadCategories();
+  }
+
+  async function loadCategories() {
+    const res = await fetch('/api/kategori');
+    const cats = await res.json();
+    const sel = document.getElementById('fCategory');
+    sel.innerHTML = '<option value="">-- Pilih Kategori --</option>';
+    cats.forEach(c => { const o = document.createElement('option'); o.value = c.name; o.textContent = c.name; sel.appendChild(o); });
+  }
+
+  function onSearch() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    const filtered = allData.filter(i => i.code?.toLowerCase().includes(q) || i.name?.toLowerCase().includes(q) || i.category?.toLowerCase().includes(q));
+    currentPage = 1;
+    renderTable(filtered);
+  }
+
+  function renderTable(data = allData) {
+    const start = (currentPage - 1) * perPage;
+    const page = data.slice(start, start + perPage);
+    const tbody = document.getElementById('tableBody');
+    if (!data.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty-state">Tidak ada data untuk ditampilkan.</td></tr>'; }
+    else {
+      tbody.innerHTML = page.map(i => `
+        <tr>
+          <td>${i.code||''}</td><td>${i.name||''}</td><td>${i.category||''}</td>
+          <td>${i.stock??0}</td><td>${i.unit||''}</td>
+          <td>Rp ${fmtNum(i.buyPrice)}</td><td>Rp ${fmtNum(i.sellPrice)}</td>
+          <td><div class="action-btns">
+            <button class="btn-edit" onclick="openEditModal(${i.id})"><i class="fas fa-pencil"></i></button>
+            <button class="btn-delete" onclick="openDeleteModal(${i.id})"><i class="fas fa-trash"></i></button>
+          </div></td>
+        </tr>`).join('');
+    }
+    const total = data.length, e = Math.min(currentPage * perPage, total), s = total ? start + 1 : 0;
+    document.querySelector('.pag-info').textContent = `Menampilkan ${s} - ${e} dari ${total} item`;
+    document.querySelector('.pag-prev').disabled = currentPage <= 1;
+    document.querySelector('.pag-next').disabled = currentPage >= Math.ceil(total / perPage);
+  }
+
+  function fmtNum(n) { return Number(n||0).toLocaleString('id-ID'); }
+
+  function changePage(dir) { currentPage += dir; renderTable(); }
+  function changePerPage(v) { perPage = parseInt(v); currentPage = 1; renderTable(); }
+
+  function openAddModal() {
+    document.getElementById('modalFormTitle').textContent = 'Tambah Barang';
+    document.getElementById('editId').value = '';
+    ['fCode','fName','fStock','fUnit','fBuyPrice','fSellPrice'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('fCategory').value = '';
+    openModal('modalForm');
+  }
+
+  function openEditModal(id) {
+    const item = allData.find(i => i.id === id);
+    if (!item) return;
+    document.getElementById('modalFormTitle').textContent = 'Edit Barang';
+    document.getElementById('editId').value = id;
+    document.getElementById('fCode').value = item.code || '';
+    document.getElementById('fName').value = item.name || '';
+    document.getElementById('fCategory').value = item.category || '';
+    document.getElementById('fStock').value = item.stock ?? 0;
+    document.getElementById('fUnit').value = item.unit || '';
+    document.getElementById('fBuyPrice').value = item.buyPrice ?? 0;
+    document.getElementById('fSellPrice').value = item.sellPrice ?? 0;
+    openModal('modalForm');
+  }
+
+  async function saveItem() {
+    const id = document.getElementById('editId').value;
+    const body = {
+      code: document.getElementById('fCode').value.trim(),
+      name: document.getElementById('fName').value.trim(),
+      category: document.getElementById('fCategory').value,
+      stock: parseInt(document.getElementById('fStock').value) || 0,
+      unit: document.getElementById('fUnit').value.trim(),
+      buyPrice: parseFloat(document.getElementById('fBuyPrice').value) || 0,
+      sellPrice: parseFloat(document.getElementById('fSellPrice').value) || 0,
+    };
+    if (!body.name) { showToast('Nama barang wajib diisi', 'error'); return; }
+    const url = id ? `/api/inventory/${id}` : '/api/inventory';
+    const method = id ? 'PUT' : 'POST';
+    const res = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const result = await res.json();
+    if (result.success) { showToast(id ? 'Barang berhasil diperbarui' : 'Barang berhasil ditambahkan', 'success'); closeModal('modalForm'); loadData(); }
+    else showToast(result.message || 'Gagal menyimpan', 'error');
+  }
+
+  function openDeleteModal(id) { deleteId = id; openModal('modalDelete'); }
+  async function confirmDelete() {
+    const res = await fetch(`/api/inventory/${deleteId}`, { method: 'DELETE' });
+    const result = await res.json();
+    if (result.success) { showToast('Barang berhasil dihapus', 'success'); closeModal('modalDelete'); loadData(); }
+    else showToast(result.message || 'Gagal menghapus', 'error');
+  }
+
+  async function printPDF() {
+    const temp = perPage; perPage = 99999; onSearch();
+    await downloadPDF('Data_Master_Barang');
+    perPage = temp; onSearch();
+  }
+
+  function exportExcel() {
+    const temp = perPage; perPage = 99999; onSearch();
+    downloadExcel('Data_Master_Barang');
+    perPage = temp; onSearch();
+  }
+
+  loadData();
+</script>
+{% endblock %}

@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+{% set active = "barang-keluar" %}
+{% block page_title %}<i class="emote-animate" style="font-style:normal; margin-right:8px;">⬆️</i> Barang Keluar{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="toolbar">
+    <button class="btn btn-primary" onclick="openAddModal()"><i class="fas fa-plus-circle"></i> Tambah Transaksi</button>
+    <button class="btn btn-danger" onclick="printPDF()"><i class="fas fa-file-pdf"></i> Print PDF</button>
+    <button class="btn btn-success" onclick="exportExcel()"><i class="fas fa-file-excel"></i> Export Excel</button>
+    <button class="btn btn-secondary" onclick="loadData()"><i class="fas fa-rotate-right"></i> Refresh</button>
+  </div>
+  <div class="filter-row">
+    <div class="search-bar">
+      <i class="fas fa-magnifying-glass"></i>
+      <input type="text" id="searchInput" placeholder="Cari berdasarkan ID, kode, nama barang..." oninput="onSearch()"/>
+    </div>
+    <div class="date-filter">
+      <label>Dari</label>
+      <input type="date" id="dateStart"/>
+      <label>Sampai</label>
+      <input type="date" id="dateEnd"/>
+      <button class="btn-filter" onclick="applyFilter()"><i class="fas fa-filter"></i> Filter</button>
+      <button class="btn-reset" onclick="resetFilter()">Reset</button>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>ID Transaksi</th><th>Tanggal</th><th>Kode Barang</th><th>Nama Barang</th><th>Jumlah</th><th>Aksi</th></tr>
+      </thead>
+      <tbody id="tableBody">
+        <tr><td colspan="6" class="empty-state">Memuat data...</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="pagination-row">
+    <span class="pagination-info pag-info">Menampilkan 0 - 0 dari 0 item</span>
+    <div style="display:flex;align-items:center;gap:16px;">
+      <div class="per-page">Tampilkan per halaman:
+        <select onchange="changePerPage(this.value)"><option>10</option><option>25</option><option>50</option></select>
+      </div>
+      <div class="pag-btns">
+        <button class="pag-btn pag-prev" onclick="changePage(-1)">«</button>
+        <button class="pag-btn pag-next" onclick="changePage(1)">»</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ADD/EDIT -->
+<div class="modal-overlay" id="modalForm">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalFormTitle">Tambah Transaksi Barang Keluar</span>
+      <button class="modal-close" onclick="closeModal('modalForm')"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editId"/>
+      <div class="form-group">
+        <label class="form-label">ID Transaksi <span style="color:#9ca3af;font-weight:400">(auto-generate)</span></label>
+        <input class="form-control" id="fTxId" placeholder="TRX001"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tanggal *</label>
+        <input class="form-control" id="fDate" type="date"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Barang *</label>
+        <select class="form-control" id="fItemCode" onchange="onItemSelect()">
+          <option value="">-- Pilih Barang --</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nama Barang</label>
+        <input class="form-control" id="fItemName" readonly placeholder="Otomatis"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Stok Tersedia</label>
+        <input class="form-control" id="fAvailStock" readonly placeholder="—"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Stok Terjual *</label>
+        <input class="form-control" id="fQty" type="number" min="1" placeholder="0"/>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modalForm')">Batal</button>
+      <button class="btn btn-primary" onclick="saveItem()"><i class="fas fa-floppy-disk"></i> Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DELETE -->
+<div class="modal-overlay" id="modalDelete">
+  <div class="modal" style="width:360px;">
+    <div class="modal-header"><span class="modal-title">Konfirmasi Hapus</span>
+      <button class="modal-close" onclick="closeModal('modalDelete')"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="modal-body"><p style="font-size:14px;color:#4b5563;">Hapus transaksi ini? Stok barang akan dikembalikan.</p></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modalDelete')">Batal</button>
+      <button class="btn btn-danger" onclick="confirmDelete()"><i class="fas fa-trash"></i> Hapus</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let allData = [], dropdownItems = [];
+  let currentPage = 1, perPage = 10, deleteId = null, activeFiltered = null;
+
+  async function loadDropdown() {
+    const res = await fetch('/api/dropdown-data');
+    const d = await res.json();
+    dropdownItems = d.items;
+    const sel = document.getElementById('fItemCode');
+    sel.innerHTML = '<option value="">-- Pilih Barang --</option>';
+    dropdownItems.forEach(i => {
+      const o = document.createElement('option');
+      o.value = i.code; o.textContent = `${i.code} - ${i.name} (Stok: ${i.stock} ${i.unit})`;
+      sel.appendChild(o);
+    });
+  }
+
+  function onItemSelect() {
+    const code = document.getElementById('fItemCode').value;
+    const item = dropdownItems.find(i => i.code === code);
+    document.getElementById('fItemName').value = item ? item.name : '';
+    document.getElementById('fAvailStock').value = item ? `${item.stock} ${item.unit}` : '';
+  }
+
+  async function loadData() {
+    const res = await fetch('/api/barang-keluar');
+    allData = await res.json();
+    activeFiltered = null;
+    renderTable(allData);
+  }
+
+  function onSearch() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    const src = activeFiltered || allData;
+    const filtered = src.filter(i => (i.transactionId||'').toLowerCase().includes(q) || (i.itemCode||'').toLowerCase().includes(q) || (i.itemName||'').toLowerCase().includes(q));
+    currentPage = 1; renderTable(filtered);
+  }
+
+  function applyFilter() {
+    const s = document.getElementById('dateStart').value;
+    const e = document.getElementById('dateEnd').value;
+    if (!s || !e) { showToast('Pilih tanggal mulai dan akhir', 'error'); return; }
+    activeFiltered = allData.filter(i => i.date >= s && i.date <= e);
+    currentPage = 1; renderTable(activeFiltered);
+  }
+
+  function resetFilter() {
+    document.getElementById('dateStart').value = '';
+    document.getElementById('dateEnd').value = '';
+    document.getElementById('searchInput').value = '';
+    activeFiltered = null; currentPage = 1; renderTable(allData);
+  }
+
+  function renderTable(data) {
+    const start = (currentPage - 1) * perPage;
+    const page = data.slice(start, start + perPage);
+    const tbody = document.getElementById('tableBody');
+    if (!data.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Tidak ada data untuk ditampilkan.</td></tr>'; }
+    else {
+      tbody.innerHTML = page.map(i => `
+        <tr>
+          <td>${i.transactionId||''}</td><td>${fmtDate(i.date)}</td>
+          <td>${i.itemCode||''}</td><td>${i.itemName||''}</td><td>${i.quantity??0}</td>
+          <td><div class="action-btns">
+            <button class="btn-edit" onclick="openEditModal(${i.id})"><i class="fas fa-pencil"></i></button>
+            <button class="btn-delete" onclick="openDeleteModal(${i.id})"><i class="fas fa-trash"></i></button>
+          </div></td>
+        </tr>`).join('');
+    }
+    const total = data.length, e2 = Math.min(currentPage * perPage, total), s2 = total ? start + 1 : 0;
+    document.querySelector('.pag-info').textContent = `Menampilkan ${s2} - ${e2} dari ${total} item`;
+    document.querySelector('.pag-prev').disabled = currentPage <= 1;
+    document.querySelector('.pag-next').disabled = currentPage >= Math.ceil(total / perPage);
+  }
+
+  function fmtDate(d) { if (!d) return ''; const p = d.split('-'); return `${p[2]}/${p[1]}/${p[0]}`; }
+  function changePage(dir) { currentPage += dir; renderTable(activeFiltered || allData); }
+  function changePerPage(v) { perPage = parseInt(v); currentPage = 1; renderTable(activeFiltered || allData); }
+
+  function openAddModal() {
+    document.getElementById('modalFormTitle').textContent = 'Tambah Transaksi Barang Keluar';
+    document.getElementById('editId').value = '';
+    document.getElementById('fTxId').value = '';
+    document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('fItemCode').value = '';
+    document.getElementById('fItemName').value = '';
+    document.getElementById('fAvailStock').value = '';
+    document.getElementById('fQty').value = '';
+    loadDropdown();
+    openModal('modalForm');
+  }
+
+  function openEditModal(id) {
+    const item = allData.find(i => i.id === id);
+    if (!item) return;
+    loadDropdown().then(() => {
+      document.getElementById('modalFormTitle').textContent = 'Edit Transaksi Barang Keluar';
+      document.getElementById('editId').value = id;
+      document.getElementById('fTxId').value = item.transactionId || '';
+      document.getElementById('fDate').value = item.date || '';
+      document.getElementById('fItemCode').value = item.itemCode || '';
+      document.getElementById('fItemName').value = item.itemName || '';
+      document.getElementById('fQty').value = item.quantity ?? '';
+      onItemSelect();
+    });
+    openModal('modalForm');
+  }
+
+  async function saveItem() {
+    const id = document.getElementById('editId').value;
+    const body = {
+      transactionId: document.getElementById('fTxId').value.trim(),
+      date: document.getElementById('fDate').value,
+      itemCode: document.getElementById('fItemCode').value,
+      itemName: document.getElementById('fItemName').value,
+      quantity: parseInt(document.getElementById('fQty').value) || 0,
+    };
+    if (!body.itemCode || !body.date || !body.quantity) { showToast('Lengkapi data wajib', 'error'); return; }
+    const url = id ? `/api/barang-keluar/${id}` : '/api/barang-keluar';
+    const method = id ? 'PUT' : 'POST';
+    const res = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const result = await res.json();
+    if (result.success) { showToast('Transaksi berhasil disimpan', 'success'); closeModal('modalForm'); loadData(); loadDropdown(); }
+    else showToast(result.message || 'Gagal menyimpan', 'error');
+  }
+
+  function openDeleteModal(id) { deleteId = id; openModal('modalDelete'); }
+  async function confirmDelete() {
+    const res = await fetch(`/api/barang-keluar/${deleteId}`, { method: 'DELETE' });
+    const result = await res.json();
+    if (result.success) { showToast('Transaksi dihapus', 'success'); closeModal('modalDelete'); loadData(); }
+    else showToast(result.message || 'Gagal menghapus', 'error');
+  }
+
+  async function printPDF() {
+    const temp = perPage; perPage = 99999; onSearch();
+    await downloadPDF('Data_Barang_Keluar');
+    perPage = temp; onSearch();
+  }
+
+  function exportExcel() {
+    const temp = perPage; perPage = 99999; onSearch();
+    downloadExcel('Data_Barang_Keluar');
+    perPage = temp; onSearch();
+  }
+
+  loadDropdown();
+  loadData();
+</script>
+{% endblock %}

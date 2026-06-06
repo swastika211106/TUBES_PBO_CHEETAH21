@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% set active = "kategori-barang" %}
+{% block page_title %}<i class="emote-animate" style="font-style:normal; margin-right:8px;">🏷️</i> Kategori Barang{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="toolbar">
+    <button class="btn btn-primary" onclick="openAddModal()"><i class="fas fa-plus-circle"></i> Tambah Kategori</button>
+    <button class="btn btn-danger" onclick="printPDF()"><i class="fas fa-file-pdf"></i> Print PDF</button>
+    <button class="btn btn-success" onclick="exportExcel()"><i class="fas fa-file-excel"></i> Export Excel</button>
+    <button class="btn btn-secondary" onclick="loadData()"><i class="fas fa-rotate-right"></i> Refresh</button>
+  </div>
+  <div class="filter-row">
+    <div class="search-bar">
+      <i class="fas fa-magnifying-glass"></i>
+      <input type="text" id="searchInput" placeholder="Cari berdasarkan ID, nama..." oninput="onSearch()"/>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>ID Kategori</th><th>Nama Kategori</th><th>Aksi</th></tr>
+      </thead>
+      <tbody id="tableBody">
+        <tr><td colspan="3" class="empty-state">Memuat data...</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="pagination-row">
+    <span class="pagination-info pag-info">Menampilkan 0 - 0 dari 0 item</span>
+    <div style="display:flex;align-items:center;gap:16px;">
+      <div class="per-page">Tampilkan per halaman:
+        <select onchange="changePerPage(this.value)"><option>10</option><option>25</option><option>50</option></select>
+      </div>
+      <div class="pag-btns">
+        <button class="pag-btn pag-prev" onclick="changePage(-1)">«</button>
+        <button class="pag-btn pag-next" onclick="changePage(1)">»</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalForm">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalFormTitle">Tambah Kategori</span>
+      <button class="modal-close" onclick="closeModal('modalForm')"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editId"/>
+      <div class="form-group">
+        <label class="form-label">ID Kategori <span style="color:#9ca3af;font-weight:400">(auto-generate)</span></label>
+        <input class="form-control" id="fKategoriId" placeholder="KTG001"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nama Kategori *</label>
+        <input class="form-control" id="fName" placeholder="Nama kategori"/>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modalForm')">Batal</button>
+      <button class="btn btn-primary" onclick="saveItem()"><i class="fas fa-floppy-disk"></i> Simpan</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalDelete">
+  <div class="modal" style="width:360px;">
+    <div class="modal-header"><span class="modal-title">Konfirmasi Hapus</span>
+      <button class="modal-close" onclick="closeModal('modalDelete')"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="modal-body"><p style="font-size:14px;color:#4b5563;">Hapus kategori ini? Tindakan tidak dapat dibatalkan.</p></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modalDelete')">Batal</button>
+      <button class="btn btn-danger" onclick="confirmDelete()"><i class="fas fa-trash"></i> Hapus</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let allData = [], currentPage = 1, perPage = 10, deleteId = null;
+
+  async function loadData() {
+    const res = await fetch('/api/kategori');
+    allData = await res.json();
+    renderTable(allData);
+  }
+
+  function onSearch() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    const filtered = allData.filter(i => (i.kategoriId||'').toLowerCase().includes(q) || (i.name||'').toLowerCase().includes(q));
+    currentPage = 1; renderTable(filtered);
+  }
+
+  function renderTable(data) {
+    const start = (currentPage - 1) * perPage;
+    const page = data.slice(start, start + perPage);
+    const tbody = document.getElementById('tableBody');
+    if (!data.length) { tbody.innerHTML = '<tr><td colspan="3" class="empty-state">Tidak ada data untuk ditampilkan.</td></tr>'; }
+    else {
+      tbody.innerHTML = page.map(i => `
+        <tr>
+          <td>${i.kategoriId||''}</td><td>${i.name||''}</td>
+          <td><div class="action-btns">
+            <button class="btn-edit" onclick="openEditModal(${i.id})"><i class="fas fa-pencil"></i></button>
+            <button class="btn-delete" onclick="openDeleteModal(${i.id})"><i class="fas fa-trash"></i></button>
+          </div></td>
+        </tr>`).join('');
+    }
+    const total = data.length, e = Math.min(currentPage * perPage, total), s = total ? start + 1 : 0;
+    document.querySelector('.pag-info').textContent = `Menampilkan ${s} - ${e} dari ${total} item`;
+    document.querySelector('.pag-prev').disabled = currentPage <= 1;
+    document.querySelector('.pag-next').disabled = currentPage >= Math.ceil(total / perPage);
+  }
+
+  function changePage(dir) { currentPage += dir; renderTable(allData); }
+  function changePerPage(v) { perPage = parseInt(v); currentPage = 1; renderTable(allData); }
+
+  function openAddModal() {
+    document.getElementById('modalFormTitle').textContent = 'Tambah Kategori';
+    document.getElementById('editId').value = '';
+    ['fKategoriId','fName'].forEach(id => document.getElementById(id).value = '');
+    openModal('modalForm');
+  }
+
+  function openEditModal(id) {
+    const item = allData.find(i => i.id === id);
+    if (!item) return;
+    document.getElementById('modalFormTitle').textContent = 'Edit Kategori';
+    document.getElementById('editId').value = id;
+    document.getElementById('fKategoriId').value = item.kategoriId || '';
+    document.getElementById('fName').value = item.name || '';
+    openModal('modalForm');
+  }
+
+  async function saveItem() {
+    const id = document.getElementById('editId').value;
+    const body = {
+      kategoriId: document.getElementById('fKategoriId').value.trim(),
+      name: document.getElementById('fName').value.trim(),
+    };
+    if (!body.name) { showToast('Nama kategori wajib diisi', 'error'); return; }
+    const url = id ? `/api/kategori/${id}` : '/api/kategori';
+    const method = id ? 'PUT' : 'POST';
+    const res = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const result = await res.json();
+    if (result.success) { showToast(id ? 'Kategori diperbarui' : 'Kategori ditambahkan', 'success'); closeModal('modalForm'); loadData(); }
+    else showToast(result.message || 'Gagal menyimpan', 'error');
+  }
+
+  function openDeleteModal(id) { deleteId = id; openModal('modalDelete'); }
+  async function confirmDelete() {
+    const res = await fetch(`/api/kategori/${deleteId}`, { method: 'DELETE' });
+    const result = await res.json();
+    if (result.success) { showToast('Kategori dihapus', 'success'); closeModal('modalDelete'); loadData(); }
+    else showToast(result.message || 'Gagal menghapus', 'error');
+  }
+
+  async function printPDF() {
+    const temp = perPage; perPage = 99999; onSearch();
+    await downloadPDF('Data_Kategori_Barang');
+    perPage = temp; onSearch();
+  }
+
+  function exportExcel() {
+    const temp = perPage; perPage = 99999; onSearch();
+    downloadExcel('Data_Kategori_Barang');
+    perPage = temp; onSearch();
+  }
+
+  loadData();
+</script>
+{% endblock %}
