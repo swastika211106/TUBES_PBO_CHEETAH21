@@ -1,0 +1,52 @@
+[
+  {
+    "id": 1,
+    "code": "BRG001",
+    "name": "PC Rakitan RTX 4070",
+    "category": "PC & Laptop",
+    "stock": 0,
+    "unit": "Unit",
+    "buyPrice": 20000000,
+    "sellPrice": 35000000
+  },
+  {
+    "id": 2,
+    "code": "BRG002",
+    "name": "Laptop Gaming ROG",
+    "category": "PC & Laptop",
+    "stock": 0,
+    "unit": "Unit",
+    "buyPrice": 15000000,
+    "sellPrice": 25000000
+  },
+  {
+    "id": 3,
+    "code": "BRG003",
+    "name": "Mechanical Keyboard",
+    "category": "Aksesoris Gaming",
+    "stock": 0,
+    "unit": "Pcs",
+    "buyPrice": 1000000,
+    "sellPrice": 2000000
+  },
+  {
+    "id": 4,
+    "code": "BRG004",
+    "name": "Speaker Edifier",
+    "category": "Audio & Visual",
+    "stock": 0,
+    "unit": "Unit",
+    "buyPrice": 1000000,
+    "sellPrice": 2000000
+  },
+  {
+    "id": 5,
+    "code": "BRG005",
+    "name": "Mouse Gaming Razer",
+    "category": "Aksesoris Gaming",
+    "stock": 0,
+    "unit": "Pcs",
+    "buyPrice": 500000,
+    "sellPrice": 1000000
+  }
+]

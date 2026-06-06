@@ -1,0 +1,32 @@
+[
+    {
+        "id": 1,
+        "name": "PT Asusindo Global",
+        "contact": "0811111111",
+        "address": "Jakarta"
+    },
+    {
+        "id": 2,
+        "name": "CV Razer Distribusi",
+        "contact": "0822222222",
+        "address": "Bandung"
+    },
+    {
+        "id": 3,
+        "name": "Toko Sentra Komputer",
+        "contact": "0833333333",
+        "address": "Surabaya"
+    },
+    {
+        "id": 4,
+        "name": "Mega Audio Nusantara",
+        "contact": "0844444444",
+        "address": "Yogyakarta"
+    },
+    {
+        "id": 5,
+        "name": "Logitech Official Store",
+        "contact": "0855555555",
+        "address": "Semarang"
+    }
+]

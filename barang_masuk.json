@@ -1,0 +1,122 @@
+[
+    {
+        "id": 1,
+        "transactionId": "TRX001",
+        "date": "2026-05-16",
+        "itemCode": "BRG001",
+        "itemName": "PC Rakitan RTX 4070",
+        "category": "PC & Laptop",
+        "quantity": 2,
+        "buyPrice": 20000000,
+        "sellPrice": 35000000,
+        "supplier": "PT Asusindo Global"
+    },
+    {
+        "id": 2,
+        "transactionId": "TRX002",
+        "date": "2026-05-18",
+        "itemCode": "BRG001",
+        "itemName": "PC Rakitan RTX 4070",
+        "category": "PC & Laptop",
+        "quantity": 3,
+        "buyPrice": 20000000,
+        "sellPrice": 35000000,
+        "supplier": "CV Razer Distribusi"
+    },
+    {
+        "id": 3,
+        "transactionId": "TRX003",
+        "date": "2026-05-20",
+        "itemCode": "BRG002",
+        "itemName": "Laptop Gaming ROG",
+        "category": "PC & Laptop",
+        "quantity": 2,
+        "buyPrice": 15000000,
+        "sellPrice": 25000000,
+        "supplier": "Toko Sentra Komputer"
+    },
+    {
+        "id": 4,
+        "transactionId": "TRX004",
+        "date": "2026-05-21",
+        "itemCode": "BRG002",
+        "itemName": "Laptop Gaming ROG",
+        "category": "PC & Laptop",
+        "quantity": 2,
+        "buyPrice": 15000000,
+        "sellPrice": 25000000,
+        "supplier": "Mega Audio Nusantara"
+    },
+    {
+        "id": 5,
+        "transactionId": "TRX005",
+        "date": "2026-05-22",
+        "itemCode": "BRG003",
+        "itemName": "Mechanical Keyboard",
+        "category": "Aksesoris Gaming",
+        "quantity": 10,
+        "buyPrice": 1000000,
+        "sellPrice": 2000000,
+        "supplier": "Logitech Official Store"
+    },
+    {
+        "id": 6,
+        "transactionId": "TRX006",
+        "date": "2026-05-24",
+        "itemCode": "BRG003",
+        "itemName": "Mechanical Keyboard",
+        "category": "Aksesoris Gaming",
+        "quantity": 10,
+        "buyPrice": 1000000,
+        "sellPrice": 2000000,
+        "supplier": "PT Asusindo Global"
+    },
+    {
+        "id": 7,
+        "transactionId": "TRX007",
+        "date": "2026-05-26",
+        "itemCode": "BRG004",
+        "itemName": "Speaker Edifier",
+        "category": "Audio & Visual",
+        "quantity": 5,
+        "buyPrice": 1000000,
+        "sellPrice": 2000000,
+        "supplier": "CV Razer Distribusi"
+    },
+    {
+        "id": 8,
+        "transactionId": "TRX008",
+        "date": "2026-05-28",
+        "itemCode": "BRG004",
+        "itemName": "Speaker Edifier",
+        "category": "Audio & Visual",
+        "quantity": 5,
+        "buyPrice": 1000000,
+        "sellPrice": 2000000,
+        "supplier": "Toko Sentra Komputer"
+    },
+    {
+        "id": 9,
+        "transactionId": "TRX009",
+        "date": "2026-05-30",
+        "itemCode": "BRG005",
+        "itemName": "Mouse Gaming Razer",
+        "category": "Aksesoris Gaming",
+        "quantity": 10,
+        "buyPrice": 500000,
+        "sellPrice": 1000000,
+        "supplier": "Mega Audio Nusantara"
+    },
+    {
+        "id": 10,
+        "transactionId": "TRX010",
+        "date": "2026-05-31",
+        "itemCode": "BRG005",
+        "itemName": "Mouse Gaming Razer",
+        "category": "Aksesoris Gaming",
+        "quantity": 10,
+        "buyPrice": 500000,
+        "sellPrice": 1000000,
+        "supplier": "Logitech Official Store"
+    }
+]

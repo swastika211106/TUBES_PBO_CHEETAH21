@@ -1,0 +1,17 @@
+[
+    {
+        "id": 1,
+        "name": "PC & Laptop",
+        "description": "Perangkat Komputer dan Laptop"
+    },
+    {
+        "id": 2,
+        "name": "Aksesoris Gaming",
+        "description": "Keyboard mekanikal, mouse gaming"
+    },
+    {
+        "id": 3,
+        "name": "Audio & Visual",
+        "description": "Speaker, headset, monitor"
+    }
+]

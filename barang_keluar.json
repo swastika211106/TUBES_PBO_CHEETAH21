@@ -1,0 +1,129 @@
+[
+  {
+    "id": 1,
+    "transactionId": "OUT001",
+    "date": "2026-05-19",
+    "itemCode": "BRG001",
+    "itemName": "PC Rakitan RTX 4070",
+    "quantity": 2,
+    "buyPrice": 20000000,
+    "sellPrice": 35000000,
+    "destination": "Pelanggan Toko"
+  },
+  {
+    "id": 2,
+    "transactionId": "OUT002",
+    "date": "2026-05-23",
+    "itemCode": "BRG002",
+    "itemName": "Laptop Gaming ROG",
+    "quantity": 2,
+    "buyPrice": 15000000,
+    "sellPrice": 25000000,
+    "destination": "Pelanggan Toko"
+  },
+  {
+    "id": 3,
+    "transactionId": "OUT003",
+    "date": "2026-05-25",
+    "itemCode": "BRG003",
+    "itemName": "Mechanical Keyboard",
+    "quantity": 5,
+    "buyPrice": 1000000,
+    "sellPrice": 2000000,
+    "destination": "Pelanggan Toko"
+  },
+  {
+    "id": 4,
+    "transactionId": "OUT004",
+    "date": "2026-05-27",
+    "itemCode": "BRG003",
+    "itemName": "Mechanical Keyboard",
+    "quantity": 5,
+    "buyPrice": 1000000,
+    "sellPrice": 2000000,
+    "destination": "Pelanggan Toko"
+  },
+  {
+    "id": 5,
+    "transactionId": "OUT005",
+    "date": "2026-05-29",
+    "itemCode": "BRG004",
+    "itemName": "Speaker Edifier",
+    "quantity": 5,
+    "buyPrice": 1000000,
+    "sellPrice": 2000000,
+    "destination": "Pelanggan Toko"
+  },
+  {
+    "id": 6,
+    "transactionId": "OUT006",
+    "date": "2026-06-01",
+    "itemCode": "BRG005",
+    "itemName": "Mouse Gaming Razer",
+    "quantity": 5,
+    "buyPrice": 500000,
+    "sellPrice": 1000000,
+    "destination": "Pelanggan Toko"
+  },
+  {
+    "id": 7,
+    "transactionId": "OUT007",
+    "date": "2026-06-03",
+    "itemCode": "BRG005",
+    "itemName": "Mouse Gaming Razer",
+    "quantity": 5,
+    "buyPrice": 500000,
+    "sellPrice": 1000000,
+    "destination": "Pelanggan Toko"
+  },
+  {
+    "transactionId": "TRX008",
+    "date": "2026-06-05",
+    "itemCode": "BRG003",
+    "itemName": "Mechanical Keyboard",
+    "quantity": 10,
+    "buyPrice": 1000000.0,
+    "sellPrice": 2000000.0,
+    "id": 8
+  },
+  {
+    "transactionId": "TRX009",
+    "date": "2026-06-05",
+    "itemCode": "BRG005",
+    "itemName": "Mouse Gaming Razer",
+    "quantity": 10,
+    "buyPrice": 500000.0,
+    "sellPrice": 1000000.0,
+    "id": 9
+  },
+  {
+    "transactionId": "TRX010",
+    "date": "2026-06-05",
+    "itemCode": "BRG004",
+    "itemName": "Speaker Edifier",
+    "quantity": 5,
+    "buyPrice": 1000000.0,
+    "sellPrice": 2000000.0,
+    "id": 10
+  },
+  {
+    "transactionId": "TRX011",
+    "date": "2026-06-05",
+    "itemCode": "BRG001",
+    "itemName": "PC Rakitan RTX 4070",
+    "quantity": 3,
+    "buyPrice": 20000000.0,
+    "sellPrice": 35000000.0,
+    "id": 11
+  },
+  {
+    "transactionId": "TRX012",
+    "date": "2026-06-06",
+    "itemCode": "BRG002",
+    "itemName": "Laptop Gaming ROG",
+    "quantity": 2,
+    "buyPrice": 15000000.0,
+    "sellPrice": 25000000.0,
+    "id": 12
+  }
+]
